@@ -1,0 +1,114 @@
+using System;
+using System.Threading;
+using System.Threading.Tasks;
+
+namespace PLAB_01
+
+{
+    class PLAB_01
+    {
+        private static double[] data;
+        private readonly int nProcessors = System.Environment.ProcessorCount;
+        private static int step;
+        static void Main(string[] args)
+        {
+            Console.WriteLine("");
+            checkSequential(50);
+            checkSequential(5000);
+            checkSequential(500000);
+            Console.WriteLine("");
+            checkParallel(50);
+            checkParallel(5000);
+            checkParallel(500000);
+            Console.WriteLine("");
+            checkMultithread(50, 2);
+            checkMultithread(5000, 2);
+            checkMultithread(500000, 2);
+            checkMultithread(500000, 3);
+            checkMultithread(500000, 5);
+            Console.ReadLine();
+        }
+        private static void Run(object someInputData)
+        {
+            int chunkStart = (int)someInputData;
+            for (int i = chunkStart; (i < chunkStart + step) && (i < data.Length); i++)
+            {
+                computation(data[i]);
+            }
+        }
+        private static void checkSequential(int NN)
+        {
+            data = generateData(NN);
+            DateTime dt1, dt2;
+            dt1 = DateTime.Now;
+            foreach (var d in data)
+            {
+                computation(d);
+            }
+            dt2 = DateTime.Now;
+            Console.WriteLine("Sequential NN={0}. \t\tTime elapsed: {1}", NN, dt2 - dt1);
+        }
+        private static void checkParallel(int NN)
+        {
+            data = generateData(NN);
+            DateTime dt1, dt2;
+            dt1 = DateTime.Now;
+            Parallel.For(0, NN, i => { computation(data[i]); });
+            dt2 = DateTime.Now;
+            Console.WriteLine("Parallel NN={0}. \t\tTime elapsed: {1}", NN, dt2 - dt1);
+        }
+        #region Multithread stuff
+        //Wraps multithread computations with time measurements
+        private static void checkMultithread(int NN, int nThr)
+        {
+            DateTime dt1, dt2;
+            dt1 = DateTime.Now;
+            doMultithread(NN, nThr);
+            dt2 = DateTime.Now;
+            Console.WriteLine("Multithread NN={0} nThr={1}. \t\tTime elapsed: {2}", NN, nThr, dt2 - dt1);
+        }
+        private static void doMultithread(int dataSize, int nThr)
+        {
+            data = generateData(dataSize);
+            step = dataSize / nThr;
+            var threads = getThreadPool(nThr);
+            int chunkStart = 0;
+            foreach (var t in threads)
+            {
+                t.Start(chunkStart);
+                chunkStart += step;
+            }
+            foreach (var t in threads)
+            {
+                t.Join();
+            }
+        }
+        private static Thread[] getThreadPool(int n)
+        {
+            Thread[] arr = new Thread[n];
+            for (int i = 0; i < n; i++)
+            {
+                arr[i] = new Thread(Run);
+            }
+            return arr;
+        }
+        #endregion
+        #region Init stuff & computations func
+        private static void computation(double n)
+        {
+            double x = Math.Pow(n / (n * n), 1.4815162342);
+        }
+        private static double[] generateData(int NN)
+        {
+            double[] a = new double[NN];
+            Random r = new Random();
+            for (int i = 0; i < a.Length; i++)
+            {
+                a[i] = r.Next(10000, 10000000);
+            }
+            return a;
+        }
+        #endregion
+    }
+
+}
